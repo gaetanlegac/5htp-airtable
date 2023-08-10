@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "nodenext",
+        "outDir": "./bin",
+        "skipLibCheck": true,
+        "downlevelIteration": true,
+        "declaration": true,
+        "esModuleInterop": true,
+        "paths": {
+            "@client/*": ["./node_modules/5htp-core/src/client/*"],
+            "@common/*": ["./node_modules/5htp-core/src/common/*"],
+            "@server/*": ["./node_modules/5htp-core/src/server/*"],
+        }
+    },
+    "include": [
+        "./src/",
+        "./node_modules/5htp-core/src/server/types"
+    ],
+    "exclude": [
+        "node_modules"
+    ]
+}
