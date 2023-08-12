@@ -144,7 +144,7 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
     extends Service<TConfig, THooks, Application, Services> {
 
     public SQL = this.use('Core/Database/SQL');
-    public Slack = this.use('CrossPath/Slack');
+    public Slack = this.use('GaetanLeGac/Slack');
     public Router = this.use('Core/Router');
 
     // Services
