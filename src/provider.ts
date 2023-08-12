@@ -432,7 +432,7 @@ export default abstract class DataProvider<
         const { databaseTable, dbPk } = this.dbTable();
 
         // Index the already known ids from database
-        const fromDb = await SQL<DatabaseModel & { airtableId: string }>`
+        const fromDb = await this.airtable.master.SQL<DatabaseModel & { airtableId: string }>`
             SELECT airtableId, :${dbPk}
             FROM :${this.tableName}
             WHERE airtableId IS NOT NULL
@@ -944,7 +944,7 @@ export default abstract class DataProvider<
 
         // Retrieve the list of record to delete
         const existingRecordsIds: string[] = Object.keys(this.airtableToDbId)
-        const toDelete = await SQL<DatabaseModel>`
+        const toDelete = await this.airtable.master.SQL<DatabaseModel>`
             SELECT *
             FROM :${this.tableName}
             WHERE airtableId NOT IN (${existingRecordsIds})
