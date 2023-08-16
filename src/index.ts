@@ -54,7 +54,13 @@ export type TConfig = {
             new: number, 
             reminder: number
         }
-    }
+    },
+
+    afterSync: (
+        report: TSyncReportObject,
+        stats: TSyncStats,
+        isInitial: boolean
+    ) => Promise<void>
 }
 
 export type THooks = {
@@ -69,6 +75,15 @@ type TLatestSyncTimes = {[providerId: string]: string}
 
 export type TQueryOptions = {
     urlSuffix?: string
+}
+
+/*----------------------------------
+- TYPES: AFTER SYNC REPORT
+----------------------------------*/
+
+type TSyncReportObject = {
+    simplified: string[],
+    technical: string
 }
 
 /*----------------------------------
@@ -144,7 +159,6 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
     extends Service<TConfig, THooks, Application, Services> {
 
     public SQL = this.use('Core/Database/SQL');
-    public Slack = this.use('GaetanLeGac/Slack');
     public Router = this.use('Core/Router');
 
     // Services
@@ -374,7 +388,7 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
         ) === 0
     }
 
-    public async afterSync( initial: boolean ) {
+    public async afterSync( isInitial: boolean ) {
         
         const syncTimesList = Object.entries( this.latestSyncTimes ).map(([ provider, syncTime ]) => ({
             provider, syncTime
@@ -387,8 +401,11 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
 
         const neededIterationsForReminder = this.config.errorsReport.interval.reminder / this.config.errorsReport.interval.new;
 
-        let report: string = ''
-        let reportforSales: string[] = []
+        const report: TSyncReportObject = {
+            simplified: [],
+            technical: ''
+        }
+
         const totalStats: TSyncStats = {
     
             fromAirtable: 0,
@@ -450,7 +467,7 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
                 }
             }
             if (errorsListforSales.length !== 0)
-                reportforSales.push( errorsListforSales.join('\n') );
+                report.simplified.push( errorsListforSales.join('\n') );
 
             // Check if something to report for this provider
             if (!this.hasEmptyStats( stats )) {
@@ -468,7 +485,7 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
                 totalStats.deletedRelations += stats.deletedRelations;
 
                 // Provider header
-                report += `
+                report.technical += `
 *${providerId}*
 From: ${provider.airtable.tablePath} | Records: ${stats.fromAirtable} | To: ${provider.tableName}
 Inserted: ${stats.inserted} | Updated: ${stats.updated} | Upserted: ${stats.upserted}
@@ -480,7 +497,7 @@ Upserted Relations: ${stats.upsertedRelations} | Deleted Relations: ${stats.dele
                 for (const rowId in errors) {
                     const { record, fields } = errors[rowId];
                     totalStats.errors += Object.keys(fields).length;
-                    report += `
+                    report.technical += `
 ${Object.entries(fields).map(([ fieldName, field ]) => 
     fieldName + ' : ' + rowId + ': ' + field.error + 
     (field.data !== undefined ? '\n```' + JSON.stringify(field.data) + '```' : '')
@@ -490,25 +507,7 @@ ${Object.entries(fields).map(([ fieldName, field ]) =>
             }
         }
 
-        if (reportforSales.length !== 0)
-            await this.Slack.sendInChannel('customer-success', `
-:warning: Beep beep, I detected problems on Airtable:
-
-${reportforSales.join('\n\n\n')}
-            `);
-
-        // Check if something to report for this provider
-        if (this.app.env.name === 'server' && !this.hasEmptyStats(totalStats))
-            await this.Slack.sendInChannel('engineering-alerts', `
-*Airtable sync report*: ${totalStats.errors} errors | ${totalStats.inserted} inserted | ${totalStats.updated} updated | ${totalStats.upserted} upserted | ${totalStats.deleted} deleted | ${totalStats.excluded} excluded
-From: ${initial ? 'Initial diffential sync' : 'Webhook incremential sync'}
-
-${report}
-`);
-        else if (initial)
-            console.log(`
-Initial airtable sync finished, and everything went fine :ok_hand:
-            `);
+        await this.config.afterSync( report, totalStats, initial );
             
     }
 }
