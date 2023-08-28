@@ -37,7 +37,7 @@ export { default as AirtableTable } from './table';
 
 export type TBaseName<Config extends TConfig> = keyof Config["spaces"];
 
-export type TConfig = {
+export type TConfig<TApp extends Application = Application> = {
 
     enable: boolean,
     enableSync: boolean,
@@ -59,7 +59,9 @@ export type TConfig = {
     afterSync: (
         report: TSyncReportObject,
         stats: TSyncStats,
-        isInitial: boolean
+        isInitial: boolean,
+        app: TApp,
+        airtable: AirtableMasterService
     ) => Promise<void>
 }
 
@@ -507,7 +509,7 @@ ${Object.entries(fields).map(([ fieldName, field ]) =>
             }
         }
 
-        await this.config.afterSync( report, totalStats, initial );
+        await this.config.afterSync( report, totalStats, initial, this.app, this );
             
     }
 }

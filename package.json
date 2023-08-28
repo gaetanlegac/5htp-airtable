@@ -9,13 +9,13 @@
         "synchronisation",
         "database"
     ],
-    "version": "0.0.3",
+    "version": "0.0.3-1",
     "license": "MIT",
     "private": false,
     "main": "src/index.ts",
     "exports": {
-        ".": "./src",
-        "./*": "./src/*"
+        ".": "./src/index.ts",
+        "./*": "./src/*.ts"
     },
     "repository": {
         "type": "git",
