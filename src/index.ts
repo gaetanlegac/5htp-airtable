@@ -184,12 +184,12 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
         this.tableMetasByName = await this.loadMetadatas( this.config.spaces[ defaultSpace ] );
 
         // Load the latest sync times for providers
-        if (this.app.env.profile === 'dev') {
+        //if (this.app.env.profile === 'dev') {
 
             // Dev version = reduce yime to reload
             const syncTimesList = await this.SQL`SELECT provider, syncTime FROM airtableLatestSync`.all();
             this.latestSyncTimes = arrayToObj( syncTimesList, { index: 'provider', val: 'syncTime' });
-        }
+        //}
     }
 
     public async ready() {

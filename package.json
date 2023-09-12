@@ -9,7 +9,7 @@
         "synchronisation",
         "database"
     ],
-    "version": "0.0.3-1",
+    "version": "0.0.3-2",
     "license": "MIT",
     "private": false,
     "main": "src/index.ts",
@@ -22,8 +22,8 @@
         "url": "git://github.com/gaetanlegac/5htp-airtable.git"
     },
     "scripts": {},
-    "peerDependencies": {
-        "5htp-core": "^0.3.2-1"
+    "devDependencies": {
+        "5htp-core": "^0.3.3-3"
     },
     "dependencies": {
         "dayjs": "^1.11.9",
