@@ -14,7 +14,7 @@ import type {
 - TYPES
 ----------------------------------*/
 // https://airtable.com/api/meta
-export type TFieldType = 'multipleAttachments'|'multipleLookupValues'|'autoNumber'|'checkbox'|'count'|'createdTime'|'currency'|'date'|'dateTime'|'duration'|'email'|'formula'|'lastModifiedTime'|'multilineText'|'multipleRecordLinks'|'multipleSelects'|'number'|'percent'|'phoneNumber'|'rating'|'richText'|'rollup'|'singleLineText'|'singleSelect'|'url'
+export type TFieldType = 'multipleAttachments'|'multipleLookupValues'|'autoNumber'|'checkbox'|'count'|'createdTime'|'currency'|'date'|'dateTime'|'duration'|'email'|'formula'|'lastModifiedTime'|'multilineText'|'multipleRecordLinks'|'multipleSelects'|'number'|'percent'|'phoneNumber'|'rating'|'richText'|'rollup'|'singleLineText'|'singleSelect'|'url'|'button'
 
 export type TTypeHelper = {
     toV1?: (v2Value: unknown) => any,
@@ -177,6 +177,11 @@ const typeHelpers: TAirtableFieldHelpers = {
     ----------------------------------*/
 
     multipleAttachments: {
+        // Should have special treatment
+        hasCompatibilityError: (airtableCol, databaseCol) => false,
+    },
+
+    button: {
         // Should have special treatment
         hasCompatibilityError: (airtableCol, databaseCol) => false,
     },
