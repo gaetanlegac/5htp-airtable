@@ -9,7 +9,7 @@
         "synchronisation",
         "database"
     ],
-    "version": "0.0.3-3",
+    "version": "0.0.3-4",
     "license": "MIT",
     "private": false,
     "main": "src/index.ts",
@@ -23,7 +23,7 @@
     },
     "scripts": {},
     "devDependencies": {
-        "5htp-core": "^0.3.3-3"
+        "5htp-core": "^0.3.4-3"
     },
     "dependencies": {
         "dayjs": "^1.11.9",
