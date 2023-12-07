@@ -988,6 +988,10 @@ export default abstract class DataProvider<
 
         this.dbg('log', `Create record`, record);
 
+        // Disable write operations when the Airtable sevrice is disabled
+        if (this.airtable.master.config.enable === false)
+            throw new Error("Write operations are disabled since Airtable service is not enabled.");
+
         // Remap for airtable
         // Only one insert supported for now
         // ? Does airtable returns the array of creatd records IN THE SAME ORDER than the input records array ?
@@ -1049,6 +1053,10 @@ export default abstract class DataProvider<
         simulate: boolean = false 
     ) {
 
+        // Disable write operations when the Airtable sevrice is disabled
+        if (this.airtable.master.config.enable === false)
+            throw new Error("Write operations are disabled since Airtable service is not enabled.");
+
         // Remap for airtable
         const {
             recordsForDb,
@@ -1086,6 +1094,10 @@ export default abstract class DataProvider<
         - We ony write before aitable and then database, because database can be serynced from airtable
     */
     public async delete(...recordIds: string[]) {
+
+        // Disable write operations when the Airtable sevrice is disabled
+        if (this.airtable.master.config.enable === false)
+            throw new Error("Write operations are disabled since Airtable service is not enabled.");
 
         throw new Error("Feature not implemented");
 
