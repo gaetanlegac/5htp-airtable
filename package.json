@@ -9,7 +9,7 @@
         "synchronisation",
         "database"
     ],
-    "version": "0.0.3-4",
+    "version": "0.0.4",
     "license": "MIT",
     "private": false,
     "main": "src/index.ts",
