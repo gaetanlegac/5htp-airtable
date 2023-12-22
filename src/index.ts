@@ -12,14 +12,15 @@ import { Anomaly } from '@common/errors';
 import { arrayToObj } from '@common/data/tableaux';
 
 // Specific 
-export { default as Provider } from './provider';
 import AirtableTable, { TMethod, TQueryDataObj } from './table';
-import type { 
-    default as DataProvider, 
-    TSyncStats
-} from './provider';
+import type { default as DataProvider, TSyncStats, TProviderAction } from './provider';
 import WebhooksConnector from './webhooks';
 import { TFieldType, TTypeHelper } from './typeHelpers';
+
+// Export
+export { default as Provider } from './provider';
+export { default as ProviderInterface } from './provider/interface';
+export { default as RemoteProvider } from './provider/remote';
 
 /*----------------------------------
 - CONST
@@ -162,13 +163,16 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
 
     public SQL = this.use('Core/Database/SQL');
     public Router = this.use('Core/Router');
+    public Fetch = this.use('Core/Fetch'); // Send request to remote providers
 
     // Services
     public webhooks = new WebhooksConnector(this);
 
-    // Initialized on start
+    // Indexes
+    public providers: {[providerId: string]: DataProvider} = {}
+    public tableIdToProvider: {[tableId: string]: DataProvider} = {}
+    private fieldsIdToWatch: string[] = []
     public latestSyncTimes: TLatestSyncTimes = {}
-    private tableMetasByName: TTablesMetadata = {}
 
     /*----------------------------------
     - LIFECYCLE
@@ -295,10 +299,6 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
     - PROVIDERS MANAGEMENT
     ----------------------------------*/
 
-    public providers: {[providerId: string]: DataProvider} = {}
-    public tableIdToProvider: {[tableId: string]: DataProvider} = {}
-    private fieldsIdToWatch: string[] = []
-
     /**
      * Register a Airtable provider instance to the Airtable Service
      * And bind the table metas to it
@@ -371,6 +371,34 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
 
             return res;
         })
+    }
+
+    public async handleRemoteRequest( 
+        providerId: string, 
+        action: TProviderAction,
+        data: object 
+    ) {
+
+        // Get provider via ID
+        const provider = this.providers[ providerId ];
+        if (provider === undefined)
+            throw new Error(`No provider "${providerId}" has been found.`);
+
+        // Check if provider.options.remote
+        if (provider.options.remote !== true)
+            throw new Error(`Remote access has not been enabled for provider "${providerId}".`);
+
+        // Switch action
+        switch (action) {
+            case 'create':
+                return await provider.create( data.record, data.airtableRecord );
+            case 'update':
+                return await provider.update( data.records, data.simulate );
+            case 'delete':
+                return await provider.delete( data.recordIds );
+            default:
+                throw new Error('Unknown action: "' + action + '"')
+        }
     }
 
     /*----------------------------------

@@ -14,8 +14,13 @@ npm install --save 5htp-airtable
 
 To be done
 
+## Changelog
+
+### 0.0.9 (22/12/2023)
+
+* Possibility to create RemoteProviders
+
 ## To be done
 
 [] Import typings from 5htp-core (peerdeps)
-[] Make reference o
 [] Usage doc

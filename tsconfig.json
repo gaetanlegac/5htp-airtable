@@ -1,16 +1,18 @@
 {
     "compilerOptions": {
+        "baseUrl": ".",
         "moduleResolution": "nodenext",
-        "outDir": "./bin",
+        "rootDir": "./src",
         "skipLibCheck": true,
         "downlevelIteration": true,
         "declaration": true,
         "esModuleInterop": true,
         "paths": {
+            "5htp-airtable/*": ["src/*"],
             "@client/*": ["./node_modules/5htp-core/src/client/*"],
             "@common/*": ["./node_modules/5htp-core/src/common/*"],
             "@server/*": ["./node_modules/5htp-core/src/server/*"],
-        }
+        },
     },
     "include": [
         "./src/",

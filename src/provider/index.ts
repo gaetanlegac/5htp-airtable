@@ -19,10 +19,11 @@ import markdown from '@common/data/markdown';
 import type { 
     AirtableTable, 
     TTableMetadatas as AirtableTableMetas,
-} from '.';
+} from '..';
+import ProviderInterface, { TAirtableModel, SyncableDatabaseRecord, With } from './interface';
 
 // Specific
-import typeHelpers from './typeHelpers';
+import typeHelpers from '../typeHelpers';
 
 /*----------------------------------
 - CONFIG
@@ -41,13 +42,10 @@ export const renderMd = (text: string) => text === undefined
 - TYPES
 ----------------------------------*/
 
-export type { AirtableAttachement } from '.';
+export type { AirtableAttachement } from '..';
 
-export type SyncableDatabaseRecord = {
-    airtableId?: string,
-    created?: Date,
-    updated?: Date,
-    synced?: Date
+type TProviderOptions = {
+    remote?: boolean
 }
 
 type TRelationsIndex = {
@@ -103,11 +101,6 @@ export type TSyncStats = {
     deletedRelations: number,
 
     errors: number
-}
-
-type TAirtableModel = {
-    Created: Date,
-    Updated: Date,
 }
 
 /*----------------------------------
@@ -181,7 +174,7 @@ export default abstract class DataProvider<
     DatabaseModel extends SyncableDatabaseRecord = SyncableDatabaseRecord,
     Relations extends {} = {},
     AirtableModelWithId extends AirtableModel & { recordId: string } = AirtableModel & { recordId: string },
-> {
+> implements ProviderInterface {
 
     /*----------------------------------
     - CONFIG
@@ -221,7 +214,8 @@ export default abstract class DataProvider<
 
     public constructor(
         public app: Application,
-        public itemName: string
+        public itemName: string,
+        public options: TProviderOptions = {}
     ) {
         
     }
@@ -467,6 +461,7 @@ export default abstract class DataProvider<
         // Remap data
         const { recordsForDb, relations } = this.airtableToDb(fromAirtable);
 
+        // Return initial sync results
         return { recordsForDb, relations };
     }
 
