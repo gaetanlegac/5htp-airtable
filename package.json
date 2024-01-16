@@ -23,7 +23,7 @@
     },
     "scripts": {},
     "devDependencies": {
-        "5htp-core": "^0.3.6-9"
+        "5htp-core": "^0.3.7"
     },
     "dependencies": {
         "dayjs": "^1.11.9",
