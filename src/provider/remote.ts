@@ -10,6 +10,8 @@ import ProviderInterface, {
     TProviderAction
 } from './interface';
 
+import AirtableTable from '../table/remote';
+
 /*----------------------------------
 - TYPES
 ----------------------------------*/
@@ -27,12 +29,18 @@ export default class RemoteProvider<
     Relations extends {} = {}
 > implements ProviderInterface {
 
+    public airtable = new AirtableTable(this);
+
     public constructor(
         public app: Application & { Fetch: FetchService },
         public providerHost: string,
         public providerId: string
     ) {
 
+    }
+
+    public start() {
+        console.log("[airtable] Remote Provider", this.providerHost + ':' + this.providerId, "linked");
     }
 
     public create( 
@@ -55,10 +63,10 @@ export default class RemoteProvider<
 
     private sendRequest( action: TProviderAction, data: any ) {
         return this.app.Fetch.post( this.providerHost, { 
+            airtableOnly: false,
             providerId: this.providerId,
             action, 
             data 
         });
     }
-
 }

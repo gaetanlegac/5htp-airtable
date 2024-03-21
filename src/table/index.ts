@@ -10,59 +10,21 @@ import { arrayChunks } from '@common/data/tableaux';
 // Specific
 import type { 
     default as AirtableService, 
-    TBaseName, TConfig, TTableMetadatas, TQueryOptions 
-} from '.';
+    TConfig, TTableMetadatas, TQueryOptions 
+} from '..';
+
+import AirtableTableInterface, { 
+    // Options
+    TMethod, TQueryDataObj, TSelectOptions, 
+    // Records
+    TRecordFields, TRecordFieldsWithId, 
+    // Results
+    TCreateResult, TDeleteResult, TListResult, TUpdateResult, TResultRecord
+} from './interface';
 
 /*----------------------------------
 - TYPES
 ----------------------------------*/
-
-/*----------------------------------
-- TYPES: REQUEST
-----------------------------------*/
-
-type TSelectOptions = {
-    pages?: number | 'all',
-    filterByFormula?: string
-}
-
-export type TMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-
-export type TQueryDataObj = {[k: string]: any}
-
-/*----------------------------------
-- TYPES: RESULTS
-----------------------------------*/
-
-type TRecordFields = {[k: string]: TAirtableCellData}
-type TRecordFieldsWithId = TRecordFields & { id: string }
-type TAirtableCellData = string | number | boolean | undefined | TAirtableCellData[];
-
-type TListResult<TRecordtype extends TRecordFields> = {
-    records: TAirtableRecord<TRecordtype>[],
-    offset?: string
-}
-
-type TCreateResult<TRecordtype extends TRecordFields> = {
-    records: TAirtableRecord<TRecordtype>[]
-}
-
-type TUpdateResult<TRecordtype extends TRecordFields> = {
-    records: TAirtableRecord<TRecordtype>[]
-}
-
-type TDeleteResult<TRecordIdToDelete extends string> = {
-    records: {
-        id: TRecordIdToDelete,
-        deleted: boolean
-    }[]
-}
-
-type TAirtableRecord<TRecord extends any> = {
-    id: string,
-    createdTime: string,
-    fields: TRecord
-}
 
 /*----------------------------------
 - CONFIG
@@ -73,7 +35,7 @@ const LogPrefix = '[airtable]';
 /*----------------------------------
 - CLASS
 ----------------------------------*/
-export default class AirtableTable<Config extends TConfig = TConfig> {
+export default class AirtableTable<Config extends TConfig = TConfig> extends AirtableTableInterface {
 
     public tablePath: string;
     public tableMetas?: TTableMetadatas;
@@ -82,10 +44,12 @@ export default class AirtableTable<Config extends TConfig = TConfig> {
 
     public constructor(
         public master: AirtableService<Config>, 
-        public baseName: keyof typeof config.spaces, 
+        public baseName: string,//keyof Config["spaces"],
         public table: string,
         private config = master.config,
     ) {
+
+        super();
 
         this.tablePath = baseName + '.' + table;
 
@@ -111,7 +75,7 @@ export default class AirtableTable<Config extends TConfig = TConfig> {
     // https://airtable.com/developers/web/api/list-records
     public async select<TRecord extends TRecordFields>( 
         options: TSelectOptions = {}
-    ) {
+    ): Promise<TResultRecord<TRecord>[]> {
 
         // Create query otpions
         const queryOptions: TQueryOptions = {}
@@ -158,14 +122,14 @@ export default class AirtableTable<Config extends TConfig = TConfig> {
     public upsert<TRecord extends TRecordFields>( 
         data: TRecord[],
         idFields: (keyof TRecord)[],
-    ) {
+    ): Promise< TCreateResult<TRecord> > {
         return this.update( data, idFields);
     }
 
     // https://airtable.com/developers/web/api/create-records
     public async insert<TRecord extends TRecordFields>( 
         data: TRecord[],
-    ) {
+    ): Promise< TCreateResult<TRecord> > {
 
         const mergedResults: TCreateResult<TRecord> = {
             records: []
@@ -196,12 +160,12 @@ export default class AirtableTable<Config extends TConfig = TConfig> {
 
     public async update<TRecord extends TRecordFieldsWithId>( 
         recordsToUpdate: TRecord[]
-    );
+    ): Promise< TCreateResult<TRecord> >;
 
     public async update<TRecord extends TRecordFields>( 
         recordsToUpdate: TRecord[],
         upsertIds: (keyof TRecord)[]
-    );
+    ): Promise< TCreateResult<TRecord> >;
 
     public async update<TRecord extends TRecordFields>( 
         recordsToUpdate: TRecord[],
@@ -243,8 +207,8 @@ export default class AirtableTable<Config extends TConfig = TConfig> {
     // https://airtable.com/developers/web/api/delete-multiple-records
     public delete<TRecordIdToDelete extends string>( 
         recordIds: TRecordIdToDelete[]
-    ) {
-        return this.query('DELETE', {
+    ): Promise<TDeleteResult<TRecordIdToDelete>> {
+        return this.query<TRecordIdToDelete>('DELETE', {
             records: recordIds
         }).then((res) => {
             this.log(`Deleted ${recordIds.length} airtable records.`);
@@ -252,23 +216,23 @@ export default class AirtableTable<Config extends TConfig = TConfig> {
         })
     }
 
-    private query<TRecord extends TRecordFields>( 
+    protected query<TRecord extends TRecordFields>( 
         method: 'GET', data?: TQueryDataObj, options?: TQueryOptions
     ): Promise<TListResult<TRecord>>;
         
-    private query<TRecord extends TRecordFields>( 
+    protected query<TRecord extends TRecordFields>( 
         method: 'POST', data?: TQueryDataObj, options?: TQueryOptions
     ): Promise<TCreateResult<TRecord>>;
 
-    private query<TRecord extends TRecordFields>( 
+    protected query<TRecord extends TRecordFields>( 
         method: 'PATCH', data?: TQueryDataObj, options?: TQueryOptions
     ): Promise<TUpdateResult<TRecord>>;
 
-    private query<TRecordIdToDelete extends string>( 
+    protected query<TRecordIdToDelete extends string>( 
         method: 'DELETE', data?: TQueryDataObj, options?: TQueryOptions
     ): Promise<TDeleteResult<TRecordIdToDelete>>;
 
-    private query<TRecord extends TRecordFields>( 
+    protected query<TRecord extends TRecordFields>( 
         method: TMethod, data?: TQueryDataObj, options: TQueryOptions = {}
     ): Promise<TRecord> {
 

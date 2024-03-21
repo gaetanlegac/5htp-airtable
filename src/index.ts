@@ -12,8 +12,11 @@ import { Anomaly } from '@common/errors';
 import { arrayToObj } from '@common/data/tableaux';
 
 // Specific 
-import AirtableTable, { TMethod, TQueryDataObj } from './table';
-import type { default as DataProvider, TSyncStats, TProviderAction } from './provider';
+import AirtableTable from './table';
+import { TMethod, TQueryDataObj } from './table/interface';
+import type { default as DataProvider, TSyncStats } from './provider';
+import type { TProviderAction } from './provider/interface';
+import type { TAirtableAction } from './provider/interface';
 import WebhooksConnector from './webhooks';
 import { TFieldType, TTypeHelper } from './typeHelpers';
 
@@ -374,9 +377,10 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
     }
 
     public async handleRemoteRequest( 
+        airtableOnly: boolean,
         providerId: string, 
-        action: TProviderAction,
-        data: object 
+        action: TProviderAction | TAirtableAction,
+        options: object,
     ) {
 
         // Get provider via ID
@@ -389,15 +393,30 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
             throw new Error(`Remote access has not been enabled for provider "${providerId}".`);
 
         // Switch action
-        switch (action) {
-            case 'create':
-                return await provider.create( data.record, data.airtableRecord );
-            case 'update':
-                return await provider.update( data.records, data.simulate );
-            case 'delete':
-                return await provider.delete( data.recordIds );
-            default:
-                throw new Error('Unknown action: "' + action + '"')
+        if (airtableOnly) {        
+            switch (action) {
+                case 'upsert':
+                    return await provider.airtable.upsert( options.data, options.idFields );
+                case 'insert':
+                    return await provider.airtable.insert( options.data );
+                case 'update':
+                    return await provider.airtable.update( options.recordsToUpdate, options.upsertIds );
+                case 'delete':
+                    return await provider.airtable.delete( options.recordIds );
+                default:
+                    throw new Error('Unsupported action by remote provider: "' + action + '"')
+            }
+        } else {         
+            switch (action) {
+                case 'create':
+                    return await provider.create( options.record, options.airtableRecord );
+                case 'update':
+                    return await provider.update( options.records, options.simulate );
+                case 'delete':
+                    return await provider.delete( options.recordIds );
+                default:
+                    throw new Error('Unsupported action by remote provider: "' + action + '"')
+            }
         }
     }
 
