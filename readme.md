@@ -66,10 +66,7 @@ type UserRelations = {
 ----------------------------------*/
 export default class UserProvider extends DataProvider<UserFromAirtable, User, UserRelations> {
 
-    public constructor(
-        public users: UserManager,
-        public app = users.app
-    ) {
+    public constructor( public users: UserService, public app = users.app ) {
         super(app, 'users');
         
         // Register to Airtable service + load airtable & db table metadatas
@@ -113,125 +110,43 @@ export default class UserProvider extends DataProvider<UserFromAirtable, User, U
 
     // Database table name
     public tableName = 'User';
-
-    // Initial sync
-    public async sync() {
-
-        // Sync latest changes from Airtable
-        const updated = await this.viaAirtable();
-        // If these are updated on Airtable, transmiss those updates to database
-        if (updated)
-            await this.toDatabase(updated);
-    }
 }
 ```
 
 ### 2. How to use your provider
 
 ```typescript
-/*----------------------------------
-- DEPENDANCES
-----------------------------------*/
-
-// ?pm
-import sha1 from 'sha1';
-// Core
-import { InputError, Forbidden } from '@common/errors';
-// App
-import { SQL, Router } from '@app';
-// Specific
 import UserProvider from './provider';
 
-/*----------------------------------
-- SERVICE TYPES
-----------------------------------*/
+export default class UsersService extends Service {
 
-export type User = {
-    firstName: string,
-    lastName: string,
-    country: string,
-    languages: string[],
-    password: string,
-}
-
-/*----------------------------------
-- CLASS
-----------------------------------*/
-export default class HeadhunterManager {
-
-    // Data management
+    // 1. Instanciate Provider
     public provider = new UserProvider(this);
-    
-    public constructor(  
-        public app = headhunting.app,
-    ) {}
 
     public async start() {
-        // Sync data from Airtable
+        // 2. Ensure the database is sync with Airtable
         await this.provider.sync();
     }
 
-    /*----------------------------------
-    - SIGNUP
-    ----------------------------------*/
-    public async emailExists( email: string ) {
-        return await SQL.exists(`FROM User WHERE email = ${SQL.esc( email )}`)
-    }
-
     public async signup( newUser: User, request: Request ) {
-
-        // Check if email exists before
-        const exists = await this.emailExists(newUser.email);
-        if (exists) 
-            throw new InputError(`An acount already exists with this email.`);
-
-        // Save to Airtable
+        // 3. Insert new data on both Airtable and Database
         const inserted = await this.provider.create({
             ...newUser,
             password: sha1(newUser.password),
         });
-
-        await Users.createSession({ email: newUser.email }, request);
-
-        // Login
-        return {
-            redirectUrl: Router.url('/onboarding'),
-            user: newUser
-        }
     }
-
-    /*----------------------------------
-    - LOGIN
-    ----------------------------------*/
 
     public async resetPassword( 
         type: string, 
         token: string, 
         rawPassword: string,
     ) {
-
-        // Decrypt token to email
-        const email = Users.decodeToken(token);
-
-        // Retrve acount information
-        const user = await SQL`
-            SELECT 
-                password, 
-                CONCAT(firstName, ' ', lastName) as fullName,
-                airtableId
-            FROM User WHERE email = ${email};
-        `.firstOrFail("This account doesn't exists.");
-
-        // Update the account password if it exists
+        // 4. Update data on both Airtable and Database
         await this.provider.update([{
             airtableId: user.airtableId,
             email: email,
             password: sha1(rawPassword)
         }]);
-
-        // Redirect
-        return true;
-
     }
 }
 ```
@@ -242,11 +157,16 @@ To be done
 
 ## Changelog
 
-### 0.1.0 (21/03/2024)
+### 0.1.0 (26/03/2024)
 
 * Remote Providers
     - Bug fixes
     - Improve security by requiring a token
+* Writing the sync() method in the provider is now optional (but can be overwritten if you need to call special actions after sync)
+* Simplified readme
+* Fix issue when the DB table pk is airtableId
+* Update database implementation to 5HTP 0.3.8
+* Added more logs
 
 ### 0.0.9 (22/12/2023)
 
