@@ -267,7 +267,19 @@ export default abstract class DataProvider<
     - LOAD FROM AIRTABLE
     ----------------------------------*/
 
-    public abstract sync(): Promise<void>;
+    /**
+     * Initial Sync (on Platform Boot)
+     * NOTE: At this moment, we consider that the Airtable is more updated than the database
+     * Assuming that the database can only be updated by the Platform
+     */
+    public async sync() {
+
+        const updated = await this.viaAirtable();
+        if (updated) {
+
+            await this.toDatabase(updated);
+        }
+    }
 
     private dbTable() {
 
@@ -298,7 +310,7 @@ export default abstract class DataProvider<
         this.airtable.tableMetas = tableMetas;
 
         // Extract metas
-        this.dbg('log', LogPrefix, `Check structure between airtable table ${this.airtable.table} and database table ${this.tableName}`);
+        this.dbg('log', LogPrefix, `Assigned table metas. Checking structure between airtable table ${this.airtable.table} and database table ${this.tableName}`);
         const airtableTable = this.airtable.metadatas();
         const databaseTable = this.airtable.master.SQL.database.getTable( this.tableName );
         this.dbMetas = databaseTable;
@@ -421,14 +433,19 @@ export default abstract class DataProvider<
 
     private async runInitialSync() {
 
+        const { databaseTable, dbPk } = this.dbTable();
+
         console.info( LogPrefix, `Syncing`, this.airtable.table, 'with', this.dbMetas.nom);
 
-        const { databaseTable, dbPk } = this.dbTable();
+        // Create list of fields to select
+        const fields = ['airtableId'];
+        if (!fields.includes( dbPk ))
+            fields.push( dbPk );
 
         // Index the already known ids from database
         const fromDb = await this.airtable.master.SQL<DatabaseModel & { airtableId: string }>`
-            SELECT airtableId, :${dbPk}
-            FROM :${this.tableName}
+            SELECT :${fields.join(', ')}
+            FROM ${this.tableName}
             WHERE airtableId IS NOT NULL
         `.all();
 
