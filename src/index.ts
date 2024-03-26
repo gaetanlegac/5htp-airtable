@@ -222,6 +222,8 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
 
     private async loadMetadatas( baseId: string ) {
 
+        this.log('Loading airtable metadatas for the following providers: ', Object.keys(this.providers).join(', '));;
+
         // https://airtable.com/api/meta
         const metas = await this.query('GET', `/v0/meta/bases/${baseId}/tables`) as TRawBaseMetadatas;
 
@@ -255,6 +257,8 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
 
             tableMetasByName[ tableMetas.name ] = tablesByID[ tableMetas.id ] = table;
         }
+
+        this.log('Loaded airtable metadatas for the following tables: ', Object.keys(tableMetasByName).join(', '));
 
         // Load metas and bind them to every provider
         for (const providerId in this.providers) {
