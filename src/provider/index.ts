@@ -217,27 +217,32 @@ export default abstract class DataProvider<
         public itemName: string,
         public options: TProviderOptions = {}
     ) {
-        
+
     }
 
     /*----------------------------------
     - INDEXED DATA
     ----------------------------------*/
     // WARN: Should ALWAYS BE UPDATED AT THE SAME TIME
-    // RecordId (airtable) => slug (database)
-    public airtableToDbId: {[recordId: string]: string} = {};
-    // Slug (database) => RecordId (airtable) 
-    public dbIdToAirtableId: {[recordId: string]: string} = {};
+    public indexes: undefined | {
+        // RecordId (airtable) => slug (database)
+        airtableToDbId: {[recordId: string]: string}
+        // Slug (database) => RecordId (airtable) 
+        dbIdToAirtableId: {[recordId: string]: string}
+    }
 
     public getDbId( airtableId: string, throwError: boolean = false ): string | null {
 
-        const databaseId = this.airtableToDbId[ airtableId ];
+        if (this.indexes === undefined)
+            throw new Anomaly(`The indexes haven't been loaded yet for the provider ${this.itemName}. Did you forget to call provider.sync() before?`);
+
+        const databaseId = this.indexes.airtableToDbId[ airtableId ];
         if (databaseId === undefined) {
             if (throwError)
                 throw new Anomaly(`Couldnt get the database id for airtableId "${airtableId}" in provider ${this.itemName}`, {
                     airtableId,
-                    indexed: Object.keys(this.airtableToDbId),
-                    isIn_airtableToDbId: (airtableId in this.airtableToDbId)
+                    indexed: Object.keys(this.indexes.airtableToDbId),
+                    isIn_airtableToDbId: (airtableId in this.indexes.airtableToDbId)
                 });
             else
                 return null;
@@ -248,13 +253,16 @@ export default abstract class DataProvider<
 
     public getAirtableId( dbId: string, throwError: boolean = false ): string | null {
 
-        const databaseId = this.dbIdToAirtableId[ dbId ];
+        if (this.indexes === undefined)
+            throw new Anomaly(`The indexes haven't been loaded yet for the provider ${this.itemName}. Did you forget to call provider.sync() before?`);
+
+        const databaseId = this.indexes.dbIdToAirtableId[ dbId ];
         if (databaseId === undefined) {
             if (throwError)
                 throw new Anomaly(`Couldnt get the airtableID for foreign key "${dbId}" in provider ${this.itemName}`, {
                     dbId,
-                    indexed: Object.keys(this.dbIdToAirtableId),
-                    isIn_idToAirtableId: (dbId in this.dbIdToAirtableId)
+                    indexed: Object.keys(this.indexes.dbIdToAirtableId),
+                    isIn_idToAirtableId: (dbId in this.indexes.dbIdToAirtableId)
                 });
             else
                 return null;
@@ -422,7 +430,6 @@ export default abstract class DataProvider<
         } = await this.runInitialSync();
 
         // Count the number of entries we got via airtable
-        this.syncStats.fromAirtable = Object.keys( this.airtableToDbId ).length
         this.dbg('log',  LogPrefix, this.syncStats.fromAirtable, this.itemName, ' from airtable');
 
         // Return the data we need to insert into the db
@@ -436,6 +443,12 @@ export default abstract class DataProvider<
         const { databaseTable, dbPk } = this.dbTable();
 
         console.info( LogPrefix, `Syncing`, this.airtable.table, 'with', this.dbMetas.nom);
+
+        // Init indexes
+        this.indexes = {
+            airtableToDbId: {},
+            dbIdToAirtableId: {}
+        }
 
         // Create list of fields to select
         const fields = ['airtableId'];
@@ -453,10 +466,11 @@ export default abstract class DataProvider<
         for (const record of fromDb) {
             const dbPkValue = record[ dbPk ];
             const indexVal = record.airtableId;
-            this.airtableToDbId[ indexVal ] = dbPkValue;
-            this.dbIdToAirtableId[ dbPkValue ] = indexVal;
+            this.indexes.airtableToDbId[ indexVal ] = dbPkValue;
+            this.indexes.dbIdToAirtableId[ dbPkValue ] = indexVal;
         }
         this.dbg('log', `Indexed ${fromDb.length} entries by airtableId (dbPk: ${dbPk}) from database data.`);
+        this.syncStats.fromAirtable = Object.keys( this.indexes.airtableToDbId ).length
 
         if (this.airtable.master.config.enable === false)
             return { recordsForDb: [], relations: {} };
@@ -544,8 +558,8 @@ export default abstract class DataProvider<
             }
 
             if (airtableId !== undefined) {
-                this.airtableToDbId[ airtableId ] = dbPkValue;
-                this.dbIdToAirtableId[ dbPkValue ] = airtableId;
+                this.indexes.airtableToDbId[ airtableId ] = dbPkValue;
+                this.indexes.dbIdToAirtableId[ dbPkValue ] = airtableId;
             }
 
             airtableRecordWithDbPk.push({ ...record, pkId: dbPkValue });
@@ -590,9 +604,9 @@ export default abstract class DataProvider<
                      // We ignore the record from the initial index, so we remove it in the index
                      if (record.pkId !== undefined) {
                         this.dbg('info', `Delete record ${record.pkId} from the index:`, error, 'Deleted record from index:', record);
-                        const dbId = this.airtableToDbId[ record.pkId ];
-                        delete this.dbIdToAirtableId[ dbId ];
-                        delete this.airtableToDbId[ record.pkId ];
+                        const dbId = this.getDbId( record.pkId, true );
+                        delete this.indexes.dbIdToAirtableId[ dbId ];
+                        delete this.indexes.airtableToDbId[ record.pkId ];
                     }
 
                     continue iterateRecords;
@@ -819,9 +833,14 @@ export default abstract class DataProvider<
                 if ('toOne' in mapper) {
 
                     // Get airtableId from db id
-                    const foreignProvider = mapper.toOne()
-                    const airtableId = foreignProvider.getAirtableId( dbValue, true)
+                    const foreignProvider = mapper.toOne();
+                    if (foreignProvider === undefined)
+                        throw new Anomaly(`Error in the ${this.itemName}.${dbKey} provider: The toOne function is expected to return a provider, but a ${typeof foreignProvider} has been returned instead.`, {
+                            dbKey,
+                            dbValue,
+                        });
 
+                    const airtableId = foreignProvider.getAirtableId( dbValue, true)
                     airtableValue = [airtableId];
                     recordForDb[ dbKey ] = dbValue; // fk
 
@@ -846,6 +865,12 @@ export default abstract class DataProvider<
                     // Get airtableIds from db ids
                     airtableValue = []
                     for (const dbFk of dbValue) {
+                        
+                        if (fk.provider === undefined)
+                            throw new Anomaly(`Error in the ${this.itemName}.${dbKey} provider: The toMany.provider function is expected to return a provider, but a ${typeof foreignProvider} has been returned instead.`, {
+                                dbKey,
+                                dbValue,
+                            });
 
                         const airtablePkValue = fk.provider.getAirtableId(dbFk, true);
 
@@ -892,24 +917,21 @@ export default abstract class DataProvider<
     - PERSIST TO DATABASE
     ----------------------------------*/
     public async toDatabase({ records, relations }: TUpdatedData<DatabaseModel>) {
-        
-        // New / Updated records
-        // We do one per one to improve debuggability
-        for (const record of records) {
 
-            const upsertResult = await this.airtable.master.SQL.upsert<SyncableDatabaseRecord>(this.tableName, record, {
-                '*': true,
-                updated: new Date
-            });
-            //this.dbg('log', `Inserted records in ${this.tableName}`, upsertResult);
-            this.syncStats.upserted += upsertResult.affectedRows;
-        }
+        const upsertResult = await this.airtable.master.SQL.upsert<SyncableDatabaseRecord>(this.tableName, records, {
+            '*': true, // All record fields
+            updated: new Date
+        }, {
+            bulk: !this.airtable.master.config.debugUpsert
+        });
+        //this.dbg('log', `Inserted records in ${this.tableName}`, upsertResult);
+        this.syncStats.upserted += upsertResult.affectedRows;
 
         await this.updateRelations(relations);
 
         await this.deleteOldRecords();
 
-        return this.airtableToDbId;
+        return this.indexes.airtableToDbId;
     }
 
     // TODO: Move to core database
@@ -923,8 +945,7 @@ export default abstract class DataProvider<
 
             // Create new
             const upsertResult = await this.airtable.master.SQL.upsert(relationTableName, relationRecords.values, '*', {
-                /*bulk: false, // Easied to debug if every row is inserted in a distinct query
-                log: true*/
+                bulk: !this.airtable.master.config.debugUpsert
             });
             this.dbg('log', `Tried to upsert ${relationRecords.values.length} records in ${relationTableName}, upserted in reality:`, upsertResult);
             this.syncStats.upsertedRelations += upsertResult.affectedRows;
@@ -954,8 +975,11 @@ export default abstract class DataProvider<
 
     private async deleteOldRecords() {
 
+        if (this.indexes === undefined)
+            throw new Anomaly(`The indexes haven't been loaded yet for the provider ${this.itemName}. Did you forget to call provider.sync() before?`);
+
         // Retrieve the list of record to delete
-        const existingRecordsIds: string[] = Object.keys(this.airtableToDbId)
+        const existingRecordsIds: string[] = Object.keys(this.indexes.airtableToDbId)
         const toDelete = await this.airtable.master.SQL<DatabaseModel>`
             SELECT *
             FROM :${this.tableName}
@@ -1000,6 +1024,9 @@ export default abstract class DataProvider<
 
         this.dbg('log', `Create record`, record);
 
+        if (this.indexes === undefined)
+            throw new Anomaly(`The indexes haven't been loaded yet for the provider ${this.itemName}. Did you forget to call provider.sync() before?`);
+
         // Disable write operations when the Airtable sevrice is disabled
         if (this.airtable.master.config.enable === false)
             throw new Error("Write operations are disabled since Airtable service is not enabled.");
@@ -1041,8 +1068,8 @@ export default abstract class DataProvider<
         this.dbg('log', `Inserted into database`, insertedDb);
 
         // Update iondexes
-        this.airtableToDbId[ airtableId ] = dbPkValue;
-        this.dbIdToAirtableId[ dbPkValue ] = airtableId;
+        this.indexes.airtableToDbId[ airtableId ] = dbPkValue;
+        this.indexes.dbIdToAirtableId[ dbPkValue ] = airtableId;
 
         // Update relations
         for (const relationTableName in relationsForDb) {

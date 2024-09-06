@@ -48,6 +48,7 @@ export type TConfig<TApp extends Application = Application> = {
     enableUpdate: boolean,
     enableRealTime: boolean,
     debug: boolean,
+    debugUpsert: boolean,
     apiKey: string,
     defaultSpace: string,
     // Map each table name to airtable ID
@@ -353,26 +354,21 @@ export default class AirtableMasterService<Config extends TConfig = TConfig>
 
         //Run request
         this.log(`${method} ${url}`/*, data*/);
-        return fetch( url, {
+        const requestOptions = {
             method: method,
             headers: {
                 Authorization: 'Bearer ' + this.config.apiKey,
                 "Content-Type": 'application/json'
             },
             body: data ? JSON.stringify(data) : null
-        }).then( res => res.json() ).then( res => {
+        }
+        return fetch( url, requestOptions).then( res => res.json() ).then( res => {
 
             if ('error' in res) {
                 console.error(LogPrefix, `Got error from airtable:`, res);
                 throw new Anomaly(LogPrefix + ` Failed to ${method} airtable records: ${res.error.type}`, {
                     url,
-                    method: method,
-                    headers: {
-                        Authorization: 'Bearer ' + this.config.apiKey,
-                        "Content-Type": 'application/json'
-                    },
-                    body: data ? JSON.stringify(data) : null,
-                    res
+                    ...requestOptions
                 });
             }
 
