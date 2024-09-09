@@ -381,7 +381,7 @@ export default class WebhooksConnector {
         // Insert new records
         const insertResult = await this.airtable.SQL.insert( provider.tableName, recordsForDb );
         console.log("createdRecordsById: insertResult", insertResult);
-        provider.syncStats.inserted += insertResult.affectedRows;
+        provider.syncStats.inserted += insertResult.length;
 
         // Update ids index in memory
         for (const recordId in createdRecords) {
@@ -505,9 +505,9 @@ export default class WebhooksConnector {
             provider.fixError({ recordId });
 
             // Delete from memory
-            const dbId = provider.airtableToDbId[ recordId ];
-            delete provider.airtableToDbId[ recordId ];
-            delete provider.dbIdToAirtableId[ dbId ];
+            const dbId = provider.indexes.airtableToDbId[ recordId ];
+            delete provider.indexes.airtableToDbId[ recordId ];
+            delete provider.indexes.dbIdToAirtableId[ dbId ];
         }
 
         // Delete records from db
