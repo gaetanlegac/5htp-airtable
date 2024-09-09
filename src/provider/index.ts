@@ -1071,13 +1071,16 @@ export default abstract class DataProvider<
         this.indexes.airtableToDbId[ airtableId ] = dbPkValue;
         this.indexes.dbIdToAirtableId[ dbPkValue ] = airtableId;
 
-        // Update relations
-        for (const relationTableName in relationsForDb) {
-            const relationRecords = relationsForDb[relationTableName];
-            for (const record of relationRecords.values) {
-                record[ relationRecords.pk ]  = airtableId
+        // If the pk is the airtableId, we put the inserted airtableId
+        if (dbPk === 'airtableId') {
+            for (const relationTableName in relationsForDb) {
+                const relationRecords = relationsForDb[relationTableName];
+                for (const record of relationRecords.values) {
+                    record[ relationRecords.pk ]  = airtableId
+                }
             }
         }
+        // Update relations
         await this.updateRelations(relationsForDb);
 
         return { ...recordforDatabaseWithAirtableId, recordUrl }
