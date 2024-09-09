@@ -356,8 +356,16 @@ export default abstract class DataProvider<
                 if (isColumnMirrored) {
                     const [airtableColName] = airtableColsName;
                     const fieldId = tableMetas.fields[ airtableColName ]?.id;
-                    if (fieldId !== undefined)
-                        this.dbColViaAirtableFieldId[ fieldId ] = databaseCol
+                    if (fieldId !== undefined) {
+
+                        if (this.dbColViaAirtableFieldId[ fieldId ] !== undefined)
+                            throw new Anomaly(`The airtable column ${this.airtable.table}.${airtableColName} has been associated to multiple db columns. This shouldn't occur.`, {
+                                airtableColName,
+                                fieldId
+                            });
+                        
+                        this.dbColViaAirtableFieldId[fieldId] = databaseCol
+                    }
                 }
             }
             
