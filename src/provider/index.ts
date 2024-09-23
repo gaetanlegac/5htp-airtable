@@ -831,9 +831,12 @@ export default abstract class DataProvider<
 
                 // Should clearly be mirrored to another airtable field
                 const mapper = this.mapper[/* TODO: fix typing */dbKey as unknown as keyof typeof this.mapper];
+
+
                 if (!(( 'airtable' in mapper ) && typeof mapper.airtable === 'string')) {
+
                     recordForDb[ dbKey ] = dbValue;
-                    continue;
+                    continue iterateColumns;
                 }
 
                 // toOne
